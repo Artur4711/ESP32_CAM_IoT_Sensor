@@ -8,5 +8,8 @@ Do zrobienia:
 Wybór oraz implementacja jakiegoś SLEEP
 Wymiana danych z RPi
 
+Problem:
+Sleep wyłącza Bluetooth.
+
 Dodatkowo: 
 Implementacja wymiany danych po WiFi.
