@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP085.h>
-//#include <Adafruit_BM280.h>
+#include <Adafruit_BMP280.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -61,7 +61,9 @@ class MyServerCallbacks: public BLEServerCallbacks {
 #define I2C_SCL 15 // SCL Connected to GPIO 15
 TwoWire I2CSensors = TwoWire(0);
 // bmp 180 (Using I2C)
-Adafruit_BMP085 bmp;
+Adafruit_BMP085 bmp180;
+// bmp 280 (Using I2C)
+Adafruit_BMP280 bmp280;
 
 void setup()
 {
@@ -71,7 +73,7 @@ void setup()
   //Initialize Software I2C
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
   // BMP 180/280 (0x77 or 0x76 will be the address)
-  if (!bmp.begin(0x76, &I2CSensors))
+  if (!bmp180.begin(0x76, &I2CSensors))
   {
     Serial.println("Couldn't Find Sensor");
     while (1);
@@ -121,8 +123,8 @@ void setup()
 
 void loop()
 {
-  temperature = bmp.readTemperature();
-  pressure = bmp.readPressure();
+  temperature = bmp180.readTemperature();
+  pressure = bmp180.readPressure();
   if (inc>10){
     Serial.println(temperature);
     Serial.println(pressure);
