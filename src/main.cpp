@@ -16,8 +16,11 @@ bool deviceConnected = false;
 int inc=0;
 // Sensor Variable (bmp280/bmp180)
 float temperature = -1000;
+float temperature2 = -1000;
 float pressure;
-// float humidity;
+float pressure2;
+float humidity;
+float humidity2;
 
 
 void BLETransfer(int16_t);
@@ -63,7 +66,10 @@ TwoWire I2CSensors = TwoWire(0);
 // bmp 180 (Using I2C)
 Adafruit_BMP085 bmp180;
 // bmp 280 (Using I2C)
-Adafruit_BMP280 bmp280;
+Adafruit_BMP280 bmp280(&I2CSensors);
+
+int addr_BMP180 = 0x76;
+int addr_BMP280 = 0x76;
 
 void setup()
 {
@@ -73,16 +79,30 @@ void setup()
   //Initialize Software I2C
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
   // BMP 180/280 (0x77 or 0x76 will be the address)
-  if (!bmp180.begin(0x76, &I2CSensors))
+  if (!bmp180.begin(addr_BMP180, &I2CSensors) && !bmp280.begin(addr_BMP280))
   {
-    Serial.println("Couldn't Find Sensor");
+    Serial.println("Couldn't Find bmp180 Sensor");
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+                      "try a different address!"));
+    Serial.print("SensorID was: 0x"); Serial.println(bmp280.sensorID(),16);
+    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+    Serial.print("        ID of 0x60 represents a BME 280.\n");
+    Serial.print("        ID of 0x61 represents a BME 680.\n");
     while (1);
   }
   else
   {
-    Serial.println("Sensor Found");
-  }
-
+    if(bmp180.begin(addr_BMP180, &I2CSensors))
+    {
+      Serial.println("Sensor BMP180 Found");
+    }
+    if (bmp280.begin(addr_BMP280)) 
+    {
+      Serial.println("Sensor BMP280 Found");
+    }
+  } 
+  
   // Create the BLE Device
   BLEDevice::init("LODÓWA_SENSOR");
   // Create the BLE Server
@@ -123,16 +143,36 @@ void setup()
 
 void loop()
 {
-  temperature = bmp180.readTemperature();
-  pressure = bmp180.readPressure();
+  if(bmp280.begin(addr_BMP280))
+  {
+    temperature2 = bmp280.readTemperature();
+    pressure2 = bmp280.readPressure();
+    humidity2 = bmp280.readAltitude(1013.2);
+  }
+  if(bmp180.begin(addr_BMP180, &I2CSensors))
+  {
+    temperature = bmp180.readTemperature();
+    pressure = bmp180.readPressure();
+    humidity = bmp180.readAltitude(1013.2);
+  }
+
   if (inc>10){
-    Serial.println(temperature);
-    Serial.println(pressure);
+    if(bmp180.begin(addr_BMP180, &I2CSensors))
+    {
+      Serial.println((String)"Temp BMP180:" + temperature);
+      Serial.println((String)"Pres BMP180:" + pressure);
+    }
+    if(bmp280.begin(addr_BMP280))
+    {
+      Serial.println((String)"Temp BMP280:" + temperature2);
+      Serial.println((String)"Pres BMP280:" + pressure2);
+    }
     inc = 0;
   }
   else{
     inc++;
   }
+
   if (deviceConnected) {
     int16_t temperatureValue;
     temperatureValue = (temperature*100);
