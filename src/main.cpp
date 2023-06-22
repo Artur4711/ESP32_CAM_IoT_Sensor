@@ -177,7 +177,7 @@ void loop()
 
   if (deviceConnected) {
     int16_t temperatureValue;
-    temperatureValue = (temperature*100);
+    temperatureValue = (temperature*100-6*100);
     Serial.println(temperatureValue);
 
     int32_t pressureValue;
@@ -201,7 +201,6 @@ void loop()
   delay(200);
 
 }
-
 
 void BLETransfer(int16_t val){
   temperatureCharacteristic.setValue((uint8_t*)&val, 2);
