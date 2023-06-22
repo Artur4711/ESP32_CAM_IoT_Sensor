@@ -16,11 +16,8 @@ bool deviceConnected = false;
 int inc=0;
 // Sensor Variable (bmp280/bmp180)
 float temperature = -1000;
-float temperature2 = -1000;
 float pressure;
-float pressure2;
 float humidity;
-float humidity2;
 
 
 void BLETransfer(int16_t);
@@ -128,6 +125,11 @@ void setup()
   pressureDescriptor.setValue("Ciśnienie [Pa]");
   pressureCharacteristic.addDescriptor(&pressureDescriptor);
 
+  humidityCharacteristic.addDescriptor(new BLE2902());
+  BLEDescriptor humidityDescriptor(BLEUUID((uint16_t)0x2901));
+  humidityDescriptor.setValue("Wilgotność [%]");
+  humidityCharacteristic.addDescriptor(&humidityDescriptor);
+
 
   pServer->getAdvertising()->addServiceUUID(enviornmentService);
 
@@ -145,9 +147,9 @@ void loop()
 {
   if(bmp280.begin(addr_BMP280))
   {
-    temperature2 = bmp280.readTemperature();
-    pressure2 = bmp280.readPressure();
-    humidity2 = bmp280.readAltitude(1013.2);
+    temperature = bmp280.readTemperature();
+    pressure = bmp280.readPressure();
+    humidity = bmp280.readAltitude(1013.2);
   }
   if(bmp180.begin(addr_BMP180, &I2CSensors))
   {
@@ -164,8 +166,8 @@ void loop()
     }
     if(bmp280.begin(addr_BMP280))
     {
-      Serial.println((String)"Temp BMP280:" + temperature2);
-      Serial.println((String)"Pres BMP280:" + pressure2);
+      Serial.println((String)"Temp BMP280:" + temperature);
+      Serial.println((String)"Pres BMP280:" + pressure);
     }
     inc = 0;
   }
@@ -182,12 +184,19 @@ void loop()
     pressureValue = (pressure*10);
     Serial.println(pressureValue);
 
+    int16_t humidityValue;
+    humidityValue = (humidity*100);
+    Serial.println(humidityValue);
+
     // BLETransfer(value);
     temperatureCharacteristic.setValue((uint8_t*)&temperatureValue, 2);
     temperatureCharacteristic.notify();
 
     pressureCharacteristic.setValue((uint8_t*)&pressureValue, 4);
     pressureCharacteristic.notify();
+    
+    humidityCharacteristic.setValue((uint8_t*)&humidityValue, 2);
+    humidityCharacteristic.notify();
   }
   delay(200);
 
