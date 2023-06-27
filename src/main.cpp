@@ -9,21 +9,25 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+// -----------------I2C-----------------
+#define I2C_SDA 14 // SDA Connected to GPIO 14
+#define I2C_SCL 15 // SCL Connected to GPIO 15
+TwoWire I2CSensors = TwoWire(0);
+// bmp 180 (Using I2C)
+Adafruit_BMP085 bmp180;
+// bmp 280 (Using I2C)
+Adafruit_BMP280 bmp280(&I2CSensors);
 
-// BLECharacteristic *pCharacteristic;
+int addr_BMP180 = 0x76;
+int addr_BMP280 = 0x76;
 
+// -----------------BLE-----------------
 bool deviceConnected = false;
 int inc=0;
-// Sensor Variable (bmp280/bmp180)
-float temperature = -1000;
-float pressure;
-float humidity;
-
-
-void BLETransfer(int16_t);
 
 #define enviornmentService BLEUUID((uint16_t)0x181A)
-//Characteristics 
+
+//Characteristics GATT
 BLECharacteristic temperatureCharacteristic(
   BLEUUID((uint16_t)0x2A6E), 
   BLECharacteristic::PROPERTY_READ | 
@@ -40,9 +44,8 @@ BLECharacteristic pressureCharacteristic(
   BLECharacteristic::PROPERTY_NOTIFY
 );
 
-//BLEDescriptor tempDescriptor(BLEUUID((uint16_t)0x2901));
-
 class MyServerCallbacks: public BLEServerCallbacks {
+    
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
     };
@@ -55,18 +58,12 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-
-// -----------------I2C-----------------
-#define I2C_SDA 14 // SDA Connected to GPIO 14
-#define I2C_SCL 15 // SCL Connected to GPIO 15
-TwoWire I2CSensors = TwoWire(0);
-// bmp 180 (Using I2C)
-Adafruit_BMP085 bmp180;
-// bmp 280 (Using I2C)
-Adafruit_BMP280 bmp280(&I2CSensors);
-
-int addr_BMP180 = 0x76;
-int addr_BMP280 = 0x76;
+// Sensor Variable
+float temperature = -1000;
+float pressure;
+float humidity;
+bool stat_BMP180 = false;
+bool stat_BMP280 = false;
 
 void setup()
 {
@@ -93,10 +90,12 @@ void setup()
     if(bmp180.begin(addr_BMP180, &I2CSensors))
     {
       Serial.println("Sensor BMP180 Found");
+      stat_BMP180 = true;
     }
     if (bmp280.begin(addr_BMP280)) 
     {
       Serial.println("Sensor BMP280 Found");
+      stat_BMP280 = true;
     }
   } 
   
@@ -112,7 +111,7 @@ void setup()
   pEnviornment->addCharacteristic(&humidityCharacteristic);
   pEnviornment->addCharacteristic(&pressureCharacteristic);
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
- 
+
   // Create a BLE Descriptor
   // temperature Descriptor
   temperatureCharacteristic.addDescriptor(new BLE2902());
@@ -124,52 +123,41 @@ void setup()
   BLEDescriptor pressureDescriptor(BLEUUID((uint16_t)0x2901));
   pressureDescriptor.setValue("Ciśnienie [Pa]");
   pressureCharacteristic.addDescriptor(&pressureDescriptor);
-
+ // humidity Descriptor
   humidityCharacteristic.addDescriptor(new BLE2902());
   BLEDescriptor humidityDescriptor(BLEUUID((uint16_t)0x2901));
   humidityDescriptor.setValue("Wilgotność [%]");
   humidityCharacteristic.addDescriptor(&humidityDescriptor);
 
-
   pServer->getAdvertising()->addServiceUUID(enviornmentService);
-
   // Start the service
   pEnviornment->start();
-
   // Start advertising
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
-
-
 }
 
 void loop()
 {
-  if(bmp280.begin(addr_BMP280))
-  {
-    temperature = bmp280.readTemperature();
-    pressure = bmp280.readPressure();
-    humidity = bmp280.readAltitude(1013.2);
-  }
-  if(bmp180.begin(addr_BMP180, &I2CSensors))
-  {
-    temperature = bmp180.readTemperature();
-    pressure = bmp180.readPressure();
-    humidity = bmp180.readAltitude(1013.2);
-  }
-
   if (inc>10){
-    if(bmp180.begin(addr_BMP180, &I2CSensors))
+    if(stat_BMP280)
     {
-      Serial.println((String)"Temp BMP180:" + temperature);
-      Serial.println((String)"Pres BMP180:" + pressure);
+      Serial.println((String)"Temp BMP180:" + bmp280.readTemperature());
+      Serial.println((String)"Pres BMP180:" + bmp280.readPressure());
+      Serial.println((String)"Alti BMP180:" + bmp280.readAltitude(1013.2));
+      temperature = bmp280.readTemperature();
+      pressure = bmp280.readPressure();
+      humidity = bmp280.readAltitude(1013.2);
     }
-    if(bmp280.begin(addr_BMP280))
+    if(stat_BMP180)
     {
-      Serial.println((String)"Temp BMP280:" + temperature);
-      Serial.println((String)"Pres BMP280:" + pressure);
+      Serial.println((String)"Temp BMP180:" + bmp180.readTemperature());
+      Serial.println((String)"Pres BMP180:" + bmp180.readPressure());
+      Serial.println((String)"Alti BMP180:" + bmp180.readAltitude(1013.2));
+      temperature = bmp180.readTemperature();
+      pressure = bmp180.readPressure();
+      humidity = bmp180.readAltitude(1013.2);
     }
-    inc = 0;
   }
   else{
     inc++;
@@ -199,10 +187,4 @@ void loop()
     humidityCharacteristic.notify();
   }
   delay(200);
-
-}
-
-void BLETransfer(int16_t val){
-  temperatureCharacteristic.setValue((uint8_t*)&val, 2);
-  temperatureCharacteristic.notify();
 }
